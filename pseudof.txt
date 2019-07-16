@@ -1,0 +1,13 @@
+pseudoF = function(X, k, ns = 25){
+  nk = length(k)
+  n = nrow(X)
+  T = sum(scale(X,scale=F)^2)
+  W = rep(T, nk)
+  for (i in 1:nk){
+    cli = kmeans(X, k[i], nstart=ns)
+    W[i] = sum(cli$withinss)
+  }
+  pF = ((T-W)/(k-1))/(W/(n-k))
+  return(list(k=k, W=W, pF=pF))
+} 
+pseudoF(scale(swiss), 2:6) 
