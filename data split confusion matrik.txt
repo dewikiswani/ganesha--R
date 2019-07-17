@@ -1,4 +1,5 @@
 #split data training dan testing
+data.all<- data.frame(jk, kota, single, usia, merokok, budget, tertarik)
 index<-createDataPartition(y=data.all$tertarik,p=0.7,list=F)
 training<-data.all[index,]
 testing<-data.all[-index,]
