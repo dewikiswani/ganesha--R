@@ -11,7 +11,7 @@ prediksi.train<-factor(ifelse(prop.prediksi.train[,2]>0.5,1,0),levels = 0:1,
 confusionMatrix(prediksi.train, training$tertarik)
 
 #data testing
-prob.prediksi.tet<-predict(model.02, newdata=test)
+prob.prediksi.test<-predict(model.02, newdata=test)
 prediksi.test<-factor(ifelse(prop.prediksi.test[,2]>0.5,1,0),levels = 0:1,
 	labels=c("Tidak","Tertarik"))
 
