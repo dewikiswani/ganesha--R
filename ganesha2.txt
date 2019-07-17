@@ -1,0 +1,233 @@
+setwd("D:/pelatihan/[R] 201907 -- ganesha/data")
+nasabah <- read.csv('transaksi.csv')
+nasabah20 <- nasabah [1:20,]
+stripchart(nasabah20$saldoharian,"stack",pch=19,cex=0.5)
+
+library(classInt)
+partisi1 <- classIntervals(nasabah20$saldoharian)
+partisi2 <- classIntervals(nasabah20$saldoharian,n=4,style="jenks")
+nasabah20$cl1<-findCols(partisi1)
+nasabah20$cl2<-findCols(partisi2)
+
+plot(nasabah20$saldoharian,nasabah20$tunaiATM,pch=19,cex=0.5,ylab="ATM",xlab='Saldo',col=2)
+
+plot(nasabah20$saldoharian,nasabah20$tunaiATM,type="n",ylab="ATM",xlab="Saldo")
+text(nasabah20$saldoharian,nasabah20$tunaiATM,nasabah20$nasabah,cex=0.7)
+
+jarak1 <- dist(nasabah20[,-1])
+as.matrix(jarak1)
+jarak2 <- dist(nasabah20[,-1],method="manhattan")
+as.matrix(jarak2)
+
+
+#hierarci
+clustsingle <- hclust(jarak1, method="single")
+plot(clustsingle)
+clustcomp <- hclust(jarak1, method="complete")
+plot(clustcomp)
+
+library(cluster)
+pltree(diana(jarak1),metric="manhattan")
+hasil<-kmeans(jarak2,3)
+hasil$cluster
+str(nasabah20)
+nasabah.pam <- pam(jarak1,3)
+a<-data.frame(nasabah.pam$clustering)
+
+transaksi<-nasabah
+head(transaksi) 
+
+#hanya menggunakan data frekuensi transaksi 
+freq.transaksi <- transaksi[,c(2, 3, 4, 5)] 
+head(freq.transaksi) 
+cluster <- kmeans(freq.transaksi, centers=5)
+cluster$centers 
+table(cluster$cluster) 
+total.wss <- (nrow(freq.transaksi)-1) * 	sum(apply(freq.transaksi,2,var)) 
+for (i in 2:15) {
+  total.wss[i] <- kmeans(freq.transaksi, centers=i)$tot.withinss 
+}
+plot(1:15, total.wss, type="b", xlab="Number of Clusters",
+     ylab="total Within groups sum of squares",
+     main="Assessing the Optimal Number of Clusters with the Elbow Method",
+     pch=20, cex=2)
+
+
+
+
+#############   reglog
+germancredit<- read.csv('german_credit.csv')
+names(germancredit)
+set.seed(345)
+indexes = sample(1:nrow(germancredit), size=0.5*nrow(germancredit)) # Random sample of 50% of row numbers created
+Train50 <- germancredit[indexes,] # Training data contains created indices
+Test50 <- germancredit[-indexes,] # Test data contains the rest
+
+LogisticModel50 <- glm(Creditability ~ ., family=binomial, data = Train50)
+summary(LogisticModel50)
+
+LogisticModel50 <- glm(Creditability ~ ., family=binomial, data = Train50)
+summary(LogisticModel50)
+
+LogisticModel50.rev <- glm(Creditability ~ Account.Balance +Duration.of.Credit..month.+ Payment.Status.of.Previous.Credit + Value.Savings.Stocks +  Sex...Marital.Status + Type.of.apartment + Concurrent.Credits+No.of.dependents, family=binomial, data = Train50)
+summary(LogisticModel50.rev)
+
+fit50 <- fitted.values(LogisticModel50.rev)
+Threshold50 <- rep(0,500)
+for (i in 1:500)
+  if(fit50[i] >= 0.5) Threshold50[i] <- 1
+CrossTable(Train50$Creditability, Threshold50, digits=1, prop.r=F, prop.t=F, prop.chisq=F, chisq=F, data=Train50)
+
+library(ROCR)
+pred<-prediction(predict.glm(LogisticModel50.rev, Test50),Test50$Creditability)
+perf <- performance(pred,"tpr","fpr")
+plot(perf)
+
+##### ordinal logit
+ordinaldata<-read.csv("training_ordinal.csv")
+library(VGAM)
+(vglmFit <- vglm(Response ~BMI+Product_Info_2+InsuredInfo_3+Insurance_History_3+Family_Hist+Medical_History_1+Employment_Info, family=propodds, data=ordinaldata))
+
+sumOrd   <- summary(vglmFit)
+(coefOrd <- coef(sumOrd))
+PhatCateg <- predict(vglmFit, type="response")
+head(PhatCateg)
+categHat <- as.numeric(levels(as.factor(ordinaldata$Response))[max.col(PhatCateg)])
+head(categHat)
+
+dfNew<-read.csv("test_ordinal.csv", sep=",", header=T)
+predOrd<-predict(vglmFit, dfNew, type="response")
+(categpredOrd <- as.numeric(levels(as.factor(ordinaldata$Response))[max.col(predOrd)]))
+
+(tabel<-table(categHat,ordinaldata$Response))
+round(prop.table(tabel,1),3)
+mean(categHat == ordinaldata$Response)
+
+deviance(vglmFit)
+logLik(vglmFit)
+AIC(vglmFit)
+
+vglm0 <- vglm(Response ~ 1, family=propodds, data=ordinaldata)
+LLf   <- logLik(vglmFit)
+LL0   <- logLik(vglm0)
+
+
+############ dECISION TREE
+propensity <- read.csv("datatree01.csv", sep=";", header=TRUE)
+tertarik <- factor(propensity$Tertarik.Beli., levels = 0:1, labels = c("Tidak", "Tertarik"))
+jk <- factor(propensity$Jenis.Kelamin,   levels = 0:1, labels = c("Perempuan", "Laki-Laki"))
+kota <- factor(propensity$Tinggal.di.Kota, levels = 0:1, labels = c("Tidak", "Ya"))
+single <- factor(propensity$Single, levels = 0:1, labels = c("Menikah", "Single"))
+merokok <- factor(propensity$Perokok, levels = 0:1, labels = c("Tidak", "Ya"))
+budget <- propensity$Budget
+usia <-propensity$usia
+
+library(rpart)
+model.01 <- rpart(tertarik ~  jk + kota + single + usia + merokok + budget,  
+                  method="class", control = rpart.control(minsplit = 100))
+model.01
+
+library(rpart.plot)
+rpart.plot(model.01, extra=6)
+
+rpart.plot(model.01, extra=1)
+?rpart.plot
+
+model.02 <- rpart(tertarik ~  jk + kota + single + usia + merokok + budget,  
+                  method="class", control = rpart.control(minsplit = 50))
+rpart.plot(model.02, extra=6)
+
+data.training <- data.frame(jk, kota, single, usia, merokok, budget, tertarik)
+prob.prediksi.02 <- predict(model.02, newdata=data.training)
+head(prob.prediksi.02)
+
+prediksi.02 <- factor(ifelse(prob.prediksi.02[,2] > 0.5, 1, 0),
+                      levels = 0:1, labels = c("Tidak", "Tertarik"))
+
+library(caret)
+confusionMatrix(prediksi.02, tertarik)
+
+prediksi.02 <- factor(ifelse(prob.prediksi.02[,2] > 0.6, 1, 0),
+                      levels = 0:1, labels = c("Tidak", "Tertarik"))
+
+confusionMatrix(prediksi.02, tertarik)
+
+prediksi.02 <- factor(ifelse(prob.prediksi.02[,2] > 0.3, 1, 0),
+                      levels = 0:1, labels = c("Tidak", "Tertarik"))
+
+confusionMatrix(prediksi.02, tertarik)
+
+library(ROCR)
+pred <- prediction(prob.prediksi.02[,1], tertarik)
+roc <- performance(pred, measure="tpr", x.measure="fpr")
+auc <-  performance(pred, 'auc')
+AUC <- auc@y.values[[1]]
+
+plot(roc, col="orange", lwd=2) 
+lines(x=c(0, 1), y=c(0, 1), col="red", lwd=2)
+text(0.6, 0.2, paste0("AUC = ", round(AUC,3)) )
+
+###### RANDOM FOREST
+bankloan <- read.csv("bankloan.csv", header=TRUE)
+head(bankloan)
+
+set.seed(20)
+acak <- sample(1:nrow(bankloan), 450, replace=FALSE)
+bankloan.training <- bankloan[acak,]
+bankloan.testing <- bankloan[-acak,]
+
+library(rpart)
+model.pohon <- rpart(as.factor(default) ~ age + ed + employ + address
+                     + income + debtinc + creddebt + othdebt,
+                     data=bankloan.training)
+prob.prediksi <- predict(model.pohon, bankloan.testing)
+prediksi <- ifelse(prob.prediksi[,2] > 0.5, 1, 0)
+
+tabel <- table(bankloan.testing$default, prediksi)
+akurasi <- (tabel[1,1] + tabel[2,2])/sum(tabel) * 100
+akurasi
+
+
+library(randomForest)
+#set.seed(100)
+model.forest <- randomForest(as.factor(default) ~ age + ed + employ + address
+                             + income + debtinc + creddebt + othdebt,
+                             data=bankloan.training, importance=TRUE, ntree=2000, mtry=3)
+prediksi.rf <- predict(model.forest, bankloan.testing)
+
+tabel.rf <- table(bankloan.testing$default, prediksi.rf)
+akurasi.rf <- (tabel.rf[1,1] + tabel.rf[2,2])/sum(tabel.rf) * 100
+akurasi.rf
+
+#importance(model.forest)
+varImpPlot(model.forest)
+#getTree(model.forest, labelVar=TRUE, k=2)
+
+
+for(i in 1:100){
+  acak <- sample(1:nrow(bankloan), 450, replace=FALSE)
+  bankloan.training <- bankloan[acak,]
+  bankloan.testing <- bankloan[-acak,]
+  
+  model.pohon <- rpart(as.factor(default) ~ age + ed + employ + address
+                       + income + debtinc + creddebt + othdebt,
+                       data=bankloan.training)
+  prob.prediksi <- predict(model.pohon, bankloan.testing)
+  prediksi <- ifelse(prob.prediksi[,2] > 0.5, 1, 0)
+  
+  tabel <- table(bankloan.testing$default, prediksi)
+  akurasi[i] <- (tabel[1,1] + tabel[2,2])/sum(tabel) * 100
+  
+  model.forest <- randomForest(as.factor(default) ~ age + ed + employ + address
+                               + income + debtinc + creddebt + othdebt,
+                               data=bankloan.training, importance=TRUE, ntree=2000, mtry=3)
+  prediksi.rf <- predict(model.forest, bankloan.testing)
+  
+  tabel.rf <- table(bankloan.testing$default, prediksi.rf)
+  akurasi.rf[i] <- (tabel.rf[1,1] + tabel.rf[2,2])/sum(tabel.rf) * 100
+}
+boxplot(cbind(akurasi, akurasi.rf))
+plot(akurasi, akurasi.rf)
+points(akurasi, akurasi, type="l")
+
+
